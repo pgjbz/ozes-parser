@@ -83,9 +83,14 @@ impl Parser {
     }
 
     fn parse_message(&mut self) -> Result<Command, ParseError> {
+        self.expected_token(TokenType::Len(0))?;
+        let len = if let TokenType::Len(len) = self.current_tok.token_type() {
+            len
+        } else {
+            0
+        };
         self.expected_token_in(&[TokenType::Binary])?;
         let message = self.current_tok.value().unwrap();
-        let len = message.len();
         self.consume();
         Ok(Command::Message { message, len })
     }
@@ -209,10 +214,10 @@ mod tests {
                 },
             ),
             (
-                "message #baz\";",
+                "message +l19 #baz\";",
                 Command::Message {
                     message: "baz\";".into(),
-                    len: 5usize,
+                    len: 19usize,
                 },
             ),
             (
@@ -255,14 +260,14 @@ mod tests {
                 }],
             ),
             (
-                "publisher foo; message #baz;",
+                "publisher foo; message +l19 #baz;",
                 vec![
                     Command::Publisher {
                         queue_name: "foo".into(),
                     },
                     Command::Message {
                         message: "baz;".into(),
-                        len: 4usize,
+                        len: 19usize,
                     },
                 ],
             ),
