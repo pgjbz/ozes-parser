@@ -14,6 +14,7 @@ pub enum TokenType {
     Publisher,
     Subscribe,
     Semicolon,
+    Error,
     Len(usize),
     Binary,
 }
@@ -33,6 +34,7 @@ impl From<&[u8]> for TokenType {
             b"subscribe" => Self::Subscribe,
             b"message" => Self::Message,
             b"ok" => Self::Ok,
+            b"error" => Self::Error,
             _ => Self::Name,
         }
     }
@@ -52,6 +54,7 @@ impl Display for TokenType {
             Self::Semicolon => ";".to_owned(),
             Self::Illegal => "illegal".to_owned(),
             Self::Binary => "binary".to_owned(),
+            Self::Error => "error".to_owned(),
             Self::Len(len) => format!("len {}", len),
         };
         write!(f, "{}", name)

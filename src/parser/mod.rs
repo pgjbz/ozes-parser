@@ -10,6 +10,7 @@ use self::parse_error::ParseResult;
 pub enum Command {
     Message {
         message: Bytes,
+        len: usize,
     },
     Publisher {
         queue_name: Bytes,
@@ -65,10 +66,14 @@ impl Parser {
                 TokenType::Ok => {
                     let command = self.parse_ok()?;
                     commands.push(command);
-                }
+                },
+                TokenType::Len(len) => {
+                    let command = self.parse_message_with_len(len)?;
+                    commands.push(command);
+                },
                 _ => {
                     return Err(ParseError::new(format!(
-                        "miss expression, expression cannot start with '{}', only start with 'message', 'publisher' or 'subscribe'",
+                        "miss expression, expression cannot start with '{}', only start with 'message', 'publisher', 'subscribe' or '+lx'",
                         if let Some(ref value) = self.current_tok.value() { String::from_utf8_lossy(value) } else { String::from_utf8_lossy(b"any") }
                     )))
                 }
@@ -80,8 +85,16 @@ impl Parser {
     fn parse_message(&mut self) -> Result<Command, ParseError> {
         self.expected_token_in(&[TokenType::Binary])?;
         let message = self.current_tok.value().unwrap();
+        let len = message.len();
         self.consume();
-        Ok(Command::Message { message })
+        Ok(Command::Message { message, len })
+    }
+
+    fn parse_message_with_len(&mut self, len: usize) -> Result<Command, ParseError> {
+        self.expected_token(TokenType::Binary)?;
+        let message = self.current_tok.value().unwrap();
+        self.consume();
+        Ok(Command::Message { message, len })
     }
 
     fn parse_publisher(&mut self) -> Result<Command, ParseError> {
@@ -199,6 +212,14 @@ mod tests {
                 "message #baz\";",
                 Command::Message {
                     message: "baz\";".into(),
+                    len: 5usize,
+                },
+            ),
+            (
+                "+l8 #foo",
+                Command::Message {
+                    message: "foo".into(),
+                    len: 8usize,
                 },
             ),
             //("ok", Command::Ok),
@@ -241,6 +262,7 @@ mod tests {
                     },
                     Command::Message {
                         message: "baz;".into(),
+                        len: 4usize,
                     },
                 ],
             ),
