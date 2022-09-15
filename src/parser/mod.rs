@@ -12,6 +12,9 @@ pub enum Command {
         message: Bytes,
         len: usize,
     },
+    Error {
+        message: Option<Bytes>,
+    },
     Publisher {
         queue_name: Bytes,
     },
@@ -71,6 +74,10 @@ impl Parser {
                     let command = self.parse_message_with_len(len)?;
                     commands.push(command);
                 },
+                TokenType::Error => {
+                    let command = self.parse_error_message()?;
+                    commands.push(command);
+                }
                 _ => {
                     return Err(ParseError::new(format!(
                         "miss expression, expression cannot start with '{}', only start with 'message', 'publisher', 'subscribe' or '+lx'",
@@ -93,6 +100,17 @@ impl Parser {
         let message = self.current_tok.value().unwrap();
         self.consume();
         Ok(Command::Message { message, len })
+    }
+
+    fn parse_error_message(&mut self) -> Result<Command, ParseError> {
+        let err_message = match self.expected_token(TokenType::Binary) {
+            Ok(_) => self.current_tok.value(),
+            Err(_) => None,
+        };
+        self.consume();
+        Ok(Command::Error {
+            message: err_message,
+        })
     }
 
     fn parse_message_with_len(&mut self, len: usize) -> Result<Command, ParseError> {
@@ -227,8 +245,13 @@ mod tests {
                     len: 8usize,
                 },
             ),
-            //("ok", Command::Ok),
-            //("ok;", Command::Ok),
+            (
+                "error #foo",
+                Command::Error {
+                    message: Some("foo".into()),
+                },
+            ),
+            ("error", Command::Error { message: None }),
         ];
         for (input, expected) in cases {
             let mut parser = build_parser(input.into());
