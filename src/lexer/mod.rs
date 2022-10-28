@@ -15,15 +15,14 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Token {
-        self.skip_until(|c| c.is_ascii_whitespace() && c != &0u8);
+        self.skip_until(|c| c.is_ascii_whitespace());
         let start = self.idx;
-        //TODO: lex len token
         match self.current_char() {
             b'+' if self.next_char() == &b'l' => {
                 self.consume();
                 self.consume();
                 let start = self.idx;
-                self.skip_until(|c| c.is_ascii_digit() && c != &0u8);
+                self.skip_until(|c| c.is_ascii_digit());
                 let end = self.idx;
                 let number_slice = Bytes::copy_from_slice(&self.input[start..end]);
 
@@ -35,9 +34,7 @@ impl Lexer {
                 Token::new(TokenType::Len(number), None)
             }
             (b'a'..=b'z') | (b'A'..=b'Z') | b'_' => {
-                self.skip_until(|c| {
-                    (c.is_ascii_alphanumeric() || c == &b'_' || c == &b'.') && c != &0u8
-                });
+                self.skip_until(|c| c.is_ascii_alphanumeric() || c == &b'_' || c == &b'.');
                 let end = self.idx;
                 self.consume();
                 let slice = &self.input[start..end];
@@ -75,9 +72,13 @@ impl Lexer {
     where
         F: Fn(&u8) -> bool,
     {
-        while until(self.current_char()) {
+        while until(self.current_char()) && !self.is_eof() {
             self.consume()
         }
+    }
+
+    fn is_eof(&self) -> bool {
+        self.current_char() == &b'\0'
     }
 
     fn consume(&mut self) {
